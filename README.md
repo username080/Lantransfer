@@ -61,8 +61,27 @@ On the receiving machine, configure `"mode": "server"` in your JSON file and run
 ```bash
 ./lantransfer
 ```
-
 The server will start listening on the configured port.
+
+**Running as a Daemon:**
+To run the server in the background (surviving terminal closures), append the `-d` or `--daemon` flag:
+```bash
+./lantransfer -d
+```
+
+### Running as a Systemd Service (Survive Reboots)
+To have the server start automatically whenever the machine reboots, you can configure it via `systemd`.
+1. Open the included `lantransfer.service` file and update the `WorkingDirectory` and `ExecStart` fields with the absolute path to your Lantransfer directory.
+2. Copy the service file to systemd's directory:
+   ```bash
+   sudo cp lantransfer.service /etc/systemd/system/
+   ```
+3. Reload systemd, enable the service, and start it:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable lantransfer.service
+   sudo systemctl start lantransfer.service
+   ```
 
 ### 2. Client Operations
 
