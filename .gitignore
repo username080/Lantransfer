@@ -1,0 +1,15 @@
+# Build artifacts
+obj/
+lantransfer
+
+# Configuration
+lantransfer.json
+
+# Cache and Test data
+client_cache/
+test_data/
+
+# Old/Misc
+lancom
+lancom.service
+x.txt
