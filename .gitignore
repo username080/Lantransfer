@@ -2,8 +2,6 @@
 obj/
 lantransfer
 
-# Configuration
-lantransfer.json
 
 # Cache and Test data
 client_cache/
