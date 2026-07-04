@@ -150,3 +150,16 @@ void print_progress(uint64_t current, uint64_t total, const char *prefix) {
     }
     fflush(stdout);
 }
+
+/**
+ * Resolves the master cache directory path based on the JSON configuration,
+ * and forces the operating system to create it if it doesn't exist.
+ */
+void ensure_server_cache_dir(Config *config, char *base_cache, size_t size) {
+    if (strlen(config->server_cache_dir) > 0) {
+        make_absolute_path(base_cache, size, config->server_cache_dir);
+    } else {
+        snprintf(base_cache, size, "/home/%s/lantransfercache", config->username);
+    }
+    mkdir_p(base_cache);
+}

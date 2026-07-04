@@ -15,7 +15,13 @@
  * This reads the very first byte (the Action byte) to see what the client
  * wants to do, and passes the socket off to the appropriate handler.
  */
-static void handle_client(int client_fd, Config *config) {
+static void handle_client(int client_fd, Config *config, char *base_cache) {
+    // SECURITY/RELIABILITY: If the cache directory got deleted while the server
+    // was running in the background, we instantly recreate it right before we use it!
+    if (!is_directory(base_cache)) {
+        ensure_server_cache_dir(config, base_cache, 4096);
+    }
+
     uint8_t action;
     char target_path[65536];
 
@@ -26,18 +32,18 @@ static void handle_client(int client_fd, Config *config) {
         return;
     }
 
-    // Abstract routing logic
+    // Abstract routing logic (Passing the pre-calculated base_cache!)
     if (action == ACTION_SEND) {
-        handle_client_send(client_fd, target_path, config);
+        handle_client_send(client_fd, target_path, base_cache);
         
     } else if (action == ACTION_GET) {
-        handle_client_get(client_fd, target_path, config);
+        handle_client_get(client_fd, target_path);
         
     } else if (action == ACTION_EXEC) {
-        handle_client_exec(client_fd, target_path, 0, config);
+        handle_client_exec(client_fd, target_path, 0, base_cache);
         
     } else if (action == ACTION_EXEC_SAVE) {
-        handle_client_exec(client_fd, target_path, 1, config);
+        handle_client_exec(client_fd, target_path, 1, base_cache);
         
     } else {
         fprintf(stderr, "Unknown action: %d\n", action);
@@ -61,13 +67,8 @@ int start_server(Config *config) {
     printf("Configured username: %s\n", config->username);
 
     // 2. Proactively ensure the Cache Directory actually exists on disk
-    char cache_dir[4096];
-    if (strlen(config->server_cache_dir) > 0) {
-        make_absolute_path(cache_dir, sizeof(cache_dir), config->server_cache_dir);
-    } else {
-        snprintf(cache_dir, sizeof(cache_dir), "/home/%s/lantransfercache", config->username);
-    }
-    mkdir_p(cache_dir);
+    char base_cache[4096];
+    ensure_server_cache_dir(config, base_cache, sizeof(base_cache));
 
     // 3. The Infinite Loop
     while (1) {
@@ -83,7 +84,7 @@ int start_server(Config *config) {
         }
 
         printf("Accepted connection.\n");
-        handle_client(client_fd, config);
+        handle_client(client_fd, config, base_cache);
     }
 
     close(server_fd);

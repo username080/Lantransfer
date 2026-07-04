@@ -74,4 +74,16 @@ void make_absolute_path(char *dest, size_t size, const char *path);
  */
 void print_progress(uint64_t current, uint64_t total, const char *prefix);
 
+#include "../core/config.h"
+
+/**
+ * @brief Resolves and forcefully creates the master server cache directory.
+ * Centralizing this prevents ugly duplicate code across all the different routes.
+ * 
+ * @param config      The parsed configuration.
+ * @param base_cache  The buffer to store the final resolved path.
+ * @param size        The max size of the base_cache buffer.
+ */
+void ensure_server_cache_dir(Config *config, char *base_cache, size_t size);
+
 #endif // UTILS_H
