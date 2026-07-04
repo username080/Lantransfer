@@ -1,0 +1,91 @@
+#include "server.h"
+#include "server_handlers.h"
+#include "../network/socket.h"
+#include "../network/protocol.h"
+#include "../utils/utils.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+
+/**
+ * The Master Router for incoming connections.
+ * This reads the very first byte (the Action byte) to see what the client
+ * wants to do, and passes the socket off to the appropriate handler.
+ */
+static void handle_client(int client_fd, Config *config) {
+    uint8_t action;
+    char target_path[65536];
+
+    // Read the protocol handshake
+    if (protocol_recv_header(client_fd, &action, target_path, sizeof(target_path)) < 0) {
+        fprintf(stderr, "Failed to receive request header\n");
+        close(client_fd);
+        return;
+    }
+
+    // Abstract routing logic
+    if (action == ACTION_SEND) {
+        handle_client_send(client_fd, target_path, config);
+        
+    } else if (action == ACTION_GET) {
+        handle_client_get(client_fd, target_path, config);
+        
+    } else if (action == ACTION_EXEC) {
+        handle_client_exec(client_fd, target_path, 0, config);
+        
+    } else if (action == ACTION_EXEC_SAVE) {
+        handle_client_exec(client_fd, target_path, 1, config);
+        
+    } else {
+        fprintf(stderr, "Unknown action: %d\n", action);
+    }
+
+    // Disconnect when finished
+    close(client_fd);
+}
+
+/**
+ * Starts the master infinite loop.
+ */
+int start_server(Config *config) {
+    // 1. Boot up the low-level TCP listening socket
+    int server_fd = create_server_socket(config->port);
+    if (server_fd < 0) {
+        return -1;
+    }
+
+    printf("Server listening on port %d...\n", config->port);
+    printf("Configured username: %s\n", config->username);
+
+    // 2. Proactively ensure the Cache Directory actually exists on disk
+    char cache_dir[4096];
+    if (strlen(config->server_cache_dir) > 0) {
+        make_absolute_path(cache_dir, sizeof(cache_dir), config->server_cache_dir);
+    } else {
+        snprintf(cache_dir, sizeof(cache_dir), "/home/%s/lantransfercache", config->username);
+    }
+    mkdir_p(cache_dir);
+
+    // 3. The Infinite Loop
+    while (1) {
+        struct sockaddr_in client_addr;
+        socklen_t client_len = sizeof(client_addr);
+        
+        // This command blocks forever until a client tries to connect!
+        int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &client_len);
+
+        if (client_fd < 0) {
+            perror("accept");
+            continue; // Ignore broken handshakes and keep listening
+        }
+
+        printf("Accepted connection.\n");
+        handle_client(client_fd, config);
+    }
+
+    close(server_fd);
+    return 0;
+}

@@ -1,21 +1,22 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -Iinclude -Isocket -g
-LDFLAGS = 
+CFLAGS = -Wall -Wextra -g
 
-SRC_DIR = src
-INC_DIR = include
-SOCKET_DIR = socket
+# The new domain-driven directories
+CORE_DIR = core
+NET_DIR = network
+SERVER_DIR = server
+CLIENT_DIR = client
+UTILS_DIR = utils
 OBJ_DIR = obj
 
-SRCS = $(SRC_DIR)/main.c \
-       $(SRC_DIR)/server.c \
-       $(SRC_DIR)/client.c \
-       $(SRC_DIR)/config.c \
-       $(SRC_DIR)/protocol.c \
-       $(SRC_DIR)/utils.c \
-       $(SRC_DIR)/cJSON.c \
-       $(SOCKET_DIR)/socket.c
+# Find all C files automatically
+SRCS = $(wildcard $(CORE_DIR)/*.c) \
+       $(wildcard $(NET_DIR)/*.c) \
+       $(wildcard $(SERVER_DIR)/*.c) \
+       $(wildcard $(CLIENT_DIR)/*.c) \
+       $(wildcard $(UTILS_DIR)/*.c)
 
+# Convert source file names into object file paths
 OBJS = $(patsubst %.c,$(OBJ_DIR)/%.o,$(notdir $(SRCS)))
 
 TARGET = lantransfer
@@ -23,12 +24,22 @@ TARGET = lantransfer
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c | $(OBJ_DIR)
+# Dynamic compilation rules for each directory
+$(OBJ_DIR)/%.o: $(CORE_DIR)/%.c | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/%.o: $(SOCKET_DIR)/%.c | $(OBJ_DIR)
+$(OBJ_DIR)/%.o: $(NET_DIR)/%.c | $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: $(SERVER_DIR)/%.c | $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: $(CLIENT_DIR)/%.c | $(OBJ_DIR)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: $(UTILS_DIR)/%.c | $(OBJ_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJ_DIR):
