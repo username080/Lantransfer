@@ -61,6 +61,16 @@ static void handle_client(int client_fd, Config *config) {
         }
     } else if (action == ACTION_EXEC || action == ACTION_EXEC_SAVE) {
         printf("Client requested remote execution (Save: %s).\n", action == ACTION_EXEC_SAVE ? "yes" : "no");
+        
+        char base_cache[4096];
+        if (strlen(config->server_cache_dir) > 0) {
+            make_absolute_path(base_cache, sizeof(base_cache), config->server_cache_dir);
+        } else {
+            snprintf(base_cache, sizeof(base_cache), "/home/%s/lantransfercache", config->username);
+        }
+        mkdir_p(base_cache);
+        setenv("LANTRANSFER_CACHE_DIR", base_cache, 1);
+
         char tmp_script[] = "/tmp/lantransfer_exec_XXXXXX";
         int fd = mkstemp(tmp_script);
         if (fd < 0) {
@@ -82,13 +92,6 @@ static void handle_client(int client_fd, Config *config) {
                     char ts[64];
                     get_timestamp_str(ts, sizeof(ts));
 
-                    char base_cache[4096];
-                    if (strlen(config->server_cache_dir) > 0) {
-                        make_absolute_path(base_cache, sizeof(base_cache), config->server_cache_dir);
-                    } else {
-                        snprintf(base_cache, sizeof(base_cache), "/home/%s/lantransfercache", config->username);
-                    }
-                    mkdir_p(base_cache);
 
                     char out_path[8192];
                     snprintf(out_path, sizeof(out_path), "%s/exec_output_%s.log", base_cache, ts);
