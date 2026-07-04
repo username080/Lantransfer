@@ -46,7 +46,11 @@ void print_usage(const char *prog_name) {
     printf("Note: Configured via lantransfer.json in the current directory.\n");
 }
 
+#include <signal.h>
+
 int main(int argc, char *argv[]) {
+    signal(SIGPIPE, SIG_IGN);
+    
     Config config;
     if (load_config("lantransfer.json", &config) < 0) {
         return 1;

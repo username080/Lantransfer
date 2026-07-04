@@ -102,10 +102,12 @@ static void handle_client(int client_fd, Config *config) {
                         size_t n;
                         while ((n = fread(buf, 1, sizeof(buf), p)) > 0) {
                             fwrite(buf, 1, n, out);
+                            // Live stream to client!
+                            send_all(client_fd, buf, n);
                         }
                         fclose(out);
                         char success_msg[16384];
-                        snprintf(success_msg, sizeof(success_msg), "Output successfully saved on server at: %s\n", out_path);
+                        snprintf(success_msg, sizeof(success_msg), "\n--- Execution complete ---\nOutput successfully saved on server at: %s\n", out_path);
                         send_all(client_fd, success_msg, strlen(success_msg));
                     } else {
                         char err[] = "Error opening server cache file for output\n";
