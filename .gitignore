@@ -1,0 +1,16 @@
+# Build artifacts
+obj/
+lantransfer
+
+
+# Cache and Test data
+client_cache/
+test_data/
+
+
+
+secret/
+
+# Packaging
+*.deb
+deb_build/lantransfer.json

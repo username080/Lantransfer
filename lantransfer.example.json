@@ -1,0 +1,8 @@
+{
+  "mode": "client",
+  "port": 8080,
+  "server_ip": "127.0.0.1",
+  "username": "user",
+  "client_cache_dir": "client_cache",
+  "server_cache_dir": ""
+}
