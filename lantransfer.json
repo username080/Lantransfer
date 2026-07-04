@@ -1,0 +1,8 @@
+{
+  "mode": "client",
+  "port": 7272,
+  "server_ip": "127.0.0.1",
+  "username": "sauron",
+  "client_cache_dir": "client_cache",
+  "server_cache_dir": ""
+}

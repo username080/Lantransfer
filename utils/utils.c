@@ -163,3 +163,74 @@ void ensure_server_cache_dir(Config *config, char *base_cache, size_t size) {
     }
     mkdir_p(base_cache);
 }
+
+#include <sys/file.h>
+#include <dirent.h>
+
+void add_running_task(const char *base_cache, const char *task_id, const char *command) {
+    char file_path[4096];
+    snprintf(file_path, sizeof(file_path), "%s/running_tasks.txt", base_cache);
+    FILE *f = fopen(file_path, "a");
+    if (!f) return;
+    int fd = fileno(f);
+    flock(fd, LOCK_EX);
+    fprintf(f, "%s: %s\n", task_id, command);
+    fflush(f);
+    flock(fd, LOCK_UN);
+    fclose(f);
+}
+
+void remove_running_task(const char *base_cache, const char *task_id) {
+    char file_path[4096];
+    snprintf(file_path, sizeof(file_path), "%s/running_tasks.txt", base_cache);
+    
+    FILE *f = fopen(file_path, "r+");
+    if (!f) return;
+    
+    int fd = fileno(f);
+    flock(fd, LOCK_EX);
+    
+    char *buffer = malloc(1024 * 1024); // 1MB
+    if (!buffer) {
+        flock(fd, LOCK_UN);
+        fclose(f);
+        return;
+    }
+    buffer[0] = '\0';
+    
+    char line[4096];
+    while(fgets(line, sizeof(line), f)) {
+        if (strncmp(line, task_id, strlen(task_id)) != 0) {
+            strcat(buffer, line);
+        }
+    }
+    
+    rewind(f);
+    if (ftruncate(fd, 0) == 0) {
+        fputs(buffer, f);
+    }
+    fflush(f);
+    
+    free(buffer);
+    flock(fd, LOCK_UN);
+    fclose(f);
+}
+
+int remove_path(const char *path) {
+    if (is_directory(path)) {
+        DIR *dir = opendir(path);
+        if (!dir) return -1;
+        struct dirent *entry;
+        char buf[4096];
+        while ((entry = readdir(dir)) != NULL) {
+            if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+                continue;
+            snprintf(buf, sizeof(buf), "%s/%s", path, entry->d_name);
+            remove_path(buf);
+        }
+        closedir(dir);
+        return rmdir(path);
+    } else {
+        return unlink(path);
+    }
+}

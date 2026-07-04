@@ -86,4 +86,19 @@ void print_progress(uint64_t current, uint64_t total, const char *prefix);
  */
 void ensure_server_cache_dir(Config *config, char *base_cache, size_t size);
 
+/**
+ * @brief Safely adds a running task to the tracking file using file locks.
+ */
+void add_running_task(const char *base_cache, const char *task_id, const char *command);
+
+/**
+ * @brief Safely removes a task from the tracking file using file locks.
+ */
+void remove_running_task(const char *base_cache, const char *task_id);
+
+/**
+ * @brief Recursively deletes a file or directory.
+ */
+int remove_path(const char *path);
+
 #endif // UTILS_H

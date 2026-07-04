@@ -16,10 +16,13 @@
 // --- Session Action Bytes ---
 // These are the very first byte sent over a new socket connection.
 // It instantly tells the server exactly what the client wants to do.
-#define ACTION_SEND      0x01 // Client is pushing files to server
-#define ACTION_GET       0x02 // Client is downloading files from server
-#define ACTION_EXEC      0x03 // Client wants server to run a script (stream output)
-#define ACTION_EXEC_SAVE 0x04 // Client wants server to run a script (stream + save)
+#define ACTION_SEND        0x01 // Client is pushing files to server
+#define ACTION_GET         0x02 // Client is downloading files from server
+#define ACTION_EXEC        0x03 // Client wants server to run a script
+#define ACTION_EXEC_DETACH 0x05 // Client wants server to run a script in background
+#define ACTION_LIST_TASKS  0x06 // Client asks for list of background tasks
+#define ACTION_ATTACH      0x07 // Client wants to stream a background task's output
+#define ACTION_GET_MOVE    0x08 // Client wants server to stream and delete file
 
 // --- Stream Item Types ---
 // When streaming files, we need to know if the next bytes are a file or

@@ -39,11 +39,20 @@ static void handle_client(int client_fd, Config *config, char *base_cache) {
     } else if (action == ACTION_GET) {
         handle_client_get(client_fd, target_path);
         
+    } else if (action == ACTION_GET_MOVE) {
+        handle_client_get_move(client_fd, target_path);
+        
     } else if (action == ACTION_EXEC) {
         handle_client_exec(client_fd, target_path, 0, base_cache);
         
-    } else if (action == ACTION_EXEC_SAVE) {
+    } else if (action == ACTION_EXEC_DETACH) {
         handle_client_exec(client_fd, target_path, 1, base_cache);
+        
+    } else if (action == ACTION_LIST_TASKS) {
+        handle_client_list_tasks(client_fd, base_cache);
+        
+    } else if (action == ACTION_ATTACH) {
+        handle_client_attach(client_fd, target_path, base_cache);
         
     } else {
         fprintf(stderr, "Unknown action: %d\n", action);
