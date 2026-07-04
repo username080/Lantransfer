@@ -127,6 +127,10 @@ void handle_client_attach(int client_fd, const char *task_id, const char *base_c
 void handle_client_exec(int client_fd, const char *target_path, int detach, const char *base_cache) {
     printf("Client requested remote execution (Detach: %s).\n", detach ? "yes" : "no");
     setenv("LANTRANSFER_CACHE_DIR", base_cache, 1);
+    
+    // QUALITY OF LIFE: Force Python scripts to live-stream their `print()` statements
+    // instantly, instead of block-buffering them when running natively inside our C pipe!
+    setenv("PYTHONUNBUFFERED", "1", 1);
 
     char tmp_script[] = "/tmp/lantransfer_exec_XXXXXX";
     int fd = mkstemp(tmp_script);
