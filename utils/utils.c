@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,6 +9,7 @@
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
+#include <signal.h>
 
 /**
  * Grabs the current system time and formats it beautifully.
@@ -162,20 +164,102 @@ void ensure_server_cache_dir(Config *config, char *base_cache, size_t size) {
         snprintf(base_cache, size, "/home/%s/lantransfercache", config->username);
     }
     mkdir_p(base_cache);
+    
+    char live_logs[4096], archived_logs[4096];
+    snprintf(live_logs, sizeof(live_logs), "%s/live_logs", base_cache);
+    snprintf(archived_logs, sizeof(archived_logs), "%s/archived_logs", base_cache);
+    mkdir_p(live_logs);
+    mkdir_p(archived_logs);
 }
 
 #include <sys/file.h>
 #include <dirent.h>
 
-void add_running_task(const char *base_cache, const char *task_id, const char *command) {
+unsigned long long get_process_starttime(pid_t pid) {
+    char path[256];
+    snprintf(path, sizeof(path), "/proc/%d/stat", pid);
+    FILE *f = fopen(path, "r");
+    if (!f) return 0;
+    
+    char buf[1024];
+    if (fgets(buf, sizeof(buf), f)) {
+        char *rparen = strrchr(buf, ')');
+        if (rparen) {
+            unsigned long long starttime = 0;
+            char *p = rparen + 2; 
+            for (int i = 3; i < 22; i++) {
+                p = strchr(p, ' ');
+                if (!p) break;
+                p++;
+            }
+            if (p) {
+                sscanf(p, "%llu", &starttime);
+                fclose(f);
+                return starttime;
+            }
+        }
+    }
+    fclose(f);
+    return 0;
+}
+
+void add_running_task(const char *base_cache, const char *task_id, pid_t pid, const char *command) {
     char file_path[4096];
     snprintf(file_path, sizeof(file_path), "%s/running_tasks.txt", base_cache);
     FILE *f = fopen(file_path, "a");
     if (!f) return;
+    
+    unsigned long long starttime = get_process_starttime(pid);
+    
     int fd = fileno(f);
     flock(fd, LOCK_EX);
-    fprintf(f, "%s: %s\n", task_id, command);
+    fprintf(f, "%s %d %llu: %s\n", task_id, (int)pid, starttime, command);
     fflush(f);
+    flock(fd, LOCK_UN);
+    fclose(f);
+}
+
+void archive_log(const char *base_cache, const char *task_id) {
+    char src[8192], dest[8192];
+    snprintf(src, sizeof(src), "%s/live_logs/exec_output_%s.log", base_cache, task_id);
+    snprintf(dest, sizeof(dest), "%s/archived_logs/exec_output_%s.log", base_cache, task_id);
+    rename(src, dest);
+}
+
+void clean_dead_tasks(const char *base_cache) {
+    char file_path[4096];
+    snprintf(file_path, sizeof(file_path), "%s/running_tasks.txt", base_cache);
+    FILE *f = fopen(file_path, "r+");
+    if (!f) return;
+    int fd = fileno(f);
+    flock(fd, LOCK_EX);
+    char *buffer = malloc(1024 * 1024);
+    if (!buffer) { flock(fd, LOCK_UN); fclose(f); return; }
+    buffer[0] = '\0';
+    char line[4096];
+    while(fgets(line, sizeof(line), f)) {
+        char t_id[128];
+        int pid;
+        unsigned long long recorded_starttime;
+        
+        if (sscanf(line, "%127s %d %llu:", t_id, &pid, &recorded_starttime) == 3) {
+            unsigned long long current_starttime = get_process_starttime(pid);
+            if (current_starttime == 0 || current_starttime != recorded_starttime) {
+                archive_log(base_cache, t_id);
+                continue;
+            }
+        } else if (sscanf(line, "%127s %d:", t_id, &pid) == 2) {
+            if (kill(pid, 0) == -1 && errno == ESRCH) {
+                archive_log(base_cache, t_id);
+                continue;
+            }
+        }
+        strcat(buffer, line);
+    }
+    rewind(f);
+    if (ftruncate(fd, 0) == 0) fputs(buffer, f);
+    fflush(f);
+    free(buffer);
     flock(fd, LOCK_UN);
     fclose(f);
 }
@@ -199,9 +283,12 @@ void remove_running_task(const char *base_cache, const char *task_id) {
     buffer[0] = '\0';
     
     char line[4096];
+    int found = 0;
     while(fgets(line, sizeof(line), f)) {
         if (strncmp(line, task_id, strlen(task_id)) != 0) {
             strcat(buffer, line);
+        } else {
+            found = 1;
         }
     }
     
@@ -214,6 +301,10 @@ void remove_running_task(const char *base_cache, const char *task_id) {
     free(buffer);
     flock(fd, LOCK_UN);
     fclose(f);
+    
+    if (found) {
+        archive_log(base_cache, task_id);
+    }
 }
 
 int remove_path(const char *path) {

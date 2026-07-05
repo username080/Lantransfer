@@ -31,4 +31,10 @@ int start_client_exec(Config *config, const char *command_or_script, int detach)
  */
 int start_client_attach(Config *config, const char *task_id);
 
+/**
+ * @brief Connects to the server and reads an archived log.
+ * If task_id is NULL, it lists all archived logs.
+ */
+int start_client_read_log(Config *config, const char *task_id);
+
 #endif // CLIENT_H

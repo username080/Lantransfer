@@ -54,6 +54,8 @@ void handle_client_get_move(int client_fd, const char *target_path) {
 }
 
 void handle_client_list_tasks(int client_fd, const char *base_cache) {
+    clean_dead_tasks(base_cache); // Auto-clean zombies first!
+    
     char file_path[4096];
     snprintf(file_path, sizeof(file_path), "%s/running_tasks.txt", base_cache);
     FILE *f = fopen(file_path, "r");
@@ -72,18 +74,39 @@ void handle_client_list_tasks(int client_fd, const char *base_cache) {
 }
 
 void handle_client_attach(int client_fd, const char *task_id, const char *base_cache) {
-    char out_path[8192];
-    snprintf(out_path, sizeof(out_path), "%s/exec_output_%s.log", base_cache, task_id);
-    
-    FILE *f = fopen(out_path, "r");
-    if (!f) {
-        char err[] = "Error: Could not find log file for that Task ID.\n";
-        send_all(client_fd, err, strlen(err));
-        return;
-    }
+    clean_dead_tasks(base_cache); // Ensure we don't attach to a newly dead task
     
     char tasks_path[4096];
     snprintf(tasks_path, sizeof(tasks_path), "%s/running_tasks.txt", base_cache);
+    
+    int is_running = 0;
+    FILE *tf = fopen(tasks_path, "r");
+    if (tf) {
+        char line[4096];
+        while (fgets(line, sizeof(line), tf)) {
+            if (strncmp(line, task_id, strlen(task_id)) == 0) {
+                is_running = 1;
+                break;
+            }
+        }
+        fclose(tf);
+    }
+    
+    if (!is_running) {
+        char err[] = "Error: Task ID is invalid or no longer running.\nUse 'lantransfer read_log' for finished tasks.\n";
+        send_all(client_fd, err, strlen(err));
+        return;
+    }
+
+    char out_path[8192];
+    snprintf(out_path, sizeof(out_path), "%s/live_logs/exec_output_%s.log", base_cache, task_id);
+    
+    FILE *f = fopen(out_path, "r");
+    if (!f) {
+        char err[] = "Error: Log file not found in live_logs.\n";
+        send_all(client_fd, err, strlen(err));
+        return;
+    }
     
     while (1) {
         char buf[4096];
@@ -94,8 +117,8 @@ void handle_client_attach(int client_fd, const char *task_id, const char *base_c
             }
         } else {
             // EOF reached. Is the process still running?
-            int is_running = 0;
-            FILE *tf = fopen(tasks_path, "r");
+            is_running = 0;
+            tf = fopen(tasks_path, "r");
             if (tf) {
                 char line[4096];
                 while (fgets(line, sizeof(line), tf)) {
@@ -143,22 +166,19 @@ void handle_client_exec(int client_fd, const char *target_path, int detach, cons
     get_timestamp_str(ts, sizeof(ts));
     
     if (detach) {
-        add_running_task(base_cache, ts, "Remote Script");
-        
         pid_t pid = fork();
         if (pid < 0) {
             perror("fork");
             unlink(tmp_script);
-            remove_running_task(base_cache, ts);
             return;
         }
         
         if (pid > 0) {
-            // Parent returns instantly!
+            // Parent returns instantly! Add task with its real PID.
+            add_running_task(base_cache, ts, pid, "Remote Script");
             char success_msg[4096];
             snprintf(success_msg, sizeof(success_msg), "Task detached successfully! Task ID: %s\nRun 'lantransfer attach %s' to view live output.\n", ts, ts);
             send_all(client_fd, success_msg, strlen(success_msg));
-            // DO NOT UNLINK HERE! Let the child do it when it finishes.
             return; 
         }
         
@@ -170,7 +190,7 @@ void handle_client_exec(int client_fd, const char *target_path, int detach, cons
         FILE *p = popen(cmd, "r");
         if (p) {
             char out_path[8192];
-            snprintf(out_path, sizeof(out_path), "%s/exec_output_%s.log", base_cache, ts);
+            snprintf(out_path, sizeof(out_path), "%s/live_logs/exec_output_%s.log", base_cache, ts);
             FILE *out = fopen(out_path, "w");
             if (out) {
                 char buf[4096];
@@ -188,13 +208,13 @@ void handle_client_exec(int client_fd, const char *target_path, int detach, cons
         exit(0); // Child must exit!
         
     } else {
-        // Normal attached mode. ALWAYS save to server log.
+        // Normal attached mode. ALWAYS save to archived_logs directly!
         char cmd[512];
         snprintf(cmd, sizeof(cmd), "%s 2>&1", tmp_script);
         FILE *p = popen(cmd, "r");
         if (p) {
             char out_path[8192];
-            snprintf(out_path, sizeof(out_path), "%s/exec_output_%s.log", base_cache, ts);
+            snprintf(out_path, sizeof(out_path), "%s/archived_logs/exec_output_%s.log", base_cache, ts);
             FILE *out = fopen(out_path, "w");
             if (out) {
                 char buf[4096];
@@ -205,9 +225,6 @@ void handle_client_exec(int client_fd, const char *target_path, int detach, cons
                     
                     if (client_fd != -1) {
                         if (send_all(client_fd, buf, n) < 0) {
-                            // Connection Recovery: Network dropped!
-                            // By explicitly not breaking the while loop, we seamlessly
-                            // continue fetching popen output and writing to `out_path`!
                             printf("Client disconnected. Recovering to %s\n", out_path);
                             close(client_fd);
                             client_fd = -1; 
@@ -229,4 +246,67 @@ void handle_client_exec(int client_fd, const char *target_path, int detach, cons
         }
         unlink(tmp_script);
     }
+}
+
+#include <dirent.h>
+
+void handle_client_read_log(int client_fd, const char *task_id, const char *base_cache) {
+    char dir_path[8192];
+    snprintf(dir_path, sizeof(dir_path), "%s/archived_logs", base_cache);
+
+    // If task_id is empty, list all archived logs
+    if (strlen(task_id) == 0) {
+        DIR *dir = opendir(dir_path);
+        if (!dir) {
+            char err[] = "No archived logs found.\n";
+            send_all(client_fd, err, strlen(err));
+            return;
+        }
+        
+        char header[] = "Archived Logs:\n-----------------\n";
+        send_all(client_fd, header, strlen(header));
+        
+        struct dirent *entry;
+        int found = 0;
+        while ((entry = readdir(dir)) != NULL) {
+            if (strncmp(entry->d_name, "exec_output_", 12) == 0) {
+                char buf[512];
+                // Extract task ID: exec_output_XXXXX.log -> XXXXX
+                char *start = entry->d_name + 12;
+                char *end = strstr(start, ".log");
+                if (end) {
+                    snprintf(buf, sizeof(buf), "%.*s\n", (int)(end - start), start);
+                    send_all(client_fd, buf, strlen(buf));
+                    found = 1;
+                }
+            }
+        }
+        closedir(dir);
+        
+        if (!found) {
+            char none[] = "(none)\n";
+            send_all(client_fd, none, strlen(none));
+        }
+        return;
+    }
+
+    // Otherwise, stream the specific archived log file
+    char file_path[8192];
+    snprintf(file_path, sizeof(file_path), "%s/exec_output_%s.log", dir_path, task_id);
+    
+    FILE *f = fopen(file_path, "r");
+    if (!f) {
+        char err[] = "Error: Archived log not found.\n";
+        send_all(client_fd, err, strlen(err));
+        return;
+    }
+    
+    char buf[8192];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
+        if (send_all(client_fd, buf, n) < 0) {
+            break;
+        }
+    }
+    fclose(f);
 }

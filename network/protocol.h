@@ -23,6 +23,7 @@
 #define ACTION_LIST_TASKS  0x06 // Client asks for list of background tasks
 #define ACTION_ATTACH      0x07 // Client wants to stream a background task's output
 #define ACTION_GET_MOVE    0x08 // Client wants server to stream and delete file
+#define ACTION_READ_LOG    0x09 // Client wants to list or stream archived logs
 
 // --- Stream Item Types ---
 // When streaming files, we need to know if the next bytes are a file or

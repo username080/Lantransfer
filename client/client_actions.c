@@ -182,3 +182,33 @@ int start_client_attach(Config *config, const char *task_id) {
     close(sockfd);
     return 0;
 }
+
+int start_client_read_log(Config *config, const char *task_id) {
+    int sockfd = create_client_socket(config->server_ip, config->port);
+    if (sockfd < 0) {
+        return -1;
+    }
+    
+    if (!task_id) {
+        if (protocol_send_header(sockfd, ACTION_READ_LOG, "") < 0) {
+            close(sockfd);
+            return -1;
+        }
+    } else {
+        if (protocol_send_header(sockfd, ACTION_READ_LOG, task_id) < 0) {
+            close(sockfd);
+            return -1;
+        }
+    }
+    
+    char buf[4096];
+    ssize_t n;
+    while ((n = recv(sockfd, buf, sizeof(buf) - 1, 0)) > 0) {
+        buf[n] = '\0';
+        fprintf(stdout, "%s", buf);
+        fflush(stdout);
+    }
+    
+    close(sockfd);
+    return 0;
+}

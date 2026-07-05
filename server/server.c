@@ -54,6 +54,9 @@ static void handle_client(int client_fd, Config *config, char *base_cache) {
     } else if (action == ACTION_ATTACH) {
         handle_client_attach(client_fd, target_path, base_cache);
         
+    } else if (action == ACTION_READ_LOG) {
+        handle_client_read_log(client_fd, target_path, base_cache);
+        
     } else {
         fprintf(stderr, "Unknown action: %d\n", action);
     }

@@ -63,6 +63,7 @@ void print_usage(const char *prog_name) {
     printf("  Client Exec: %s exec_command <command> [-r]\n", prog_name);
     printf("  Client Exec: %s exec_script <script_path> [-r]\n", prog_name);
     printf("  Client Attc: %s attach [task_id]\n", prog_name);
+    printf("  Client Read: %s read_log [task_id]\n", prog_name);
     printf("Note: Configured via lantransfer.json in the current directory.\n");
 }
 
@@ -122,6 +123,10 @@ int main(int argc, char *argv[]) {
         } else if (strcmp(cmd, "attach") == 0) {
             const char *task_id = (argc >= 3) ? argv[2] : NULL;
             return start_client_attach(&config, task_id) < 0 ? 1 : 0;
+            
+        } else if (strcmp(cmd, "read_log") == 0) {
+            const char *task_id = (argc >= 3) ? argv[2] : NULL;
+            return start_client_read_log(&config, task_id) < 0 ? 1 : 0;
             
         } else {
             fprintf(stderr, "Unknown client command: %s\n", cmd);

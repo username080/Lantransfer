@@ -33,4 +33,9 @@ void handle_client_list_tasks(int client_fd, const char *base_cache);
  */
 void handle_client_attach(int client_fd, const char *task_id, const char *base_cache);
 
+/**
+ * @brief Handles the ACTION_READ_LOG command.
+ */
+void handle_client_read_log(int client_fd, const char *task_id, const char *base_cache);
+
 #endif // SERVER_HANDLERS_H

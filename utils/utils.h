@@ -86,15 +86,32 @@ void print_progress(uint64_t current, uint64_t total, const char *prefix);
  */
 void ensure_server_cache_dir(Config *config, char *base_cache, size_t size);
 
+#include <sys/types.h>
+
 /**
  * @brief Safely adds a running task to the tracking file using file locks.
  */
-void add_running_task(const char *base_cache, const char *task_id, const char *command);
+void add_running_task(const char *base_cache, const char *task_id, pid_t pid, const char *command);
 
 /**
- * @brief Safely removes a task from the tracking file using file locks.
+ * @brief Safely removes a task from the tracking file using file locks and archives its log.
  */
 void remove_running_task(const char *base_cache, const char *task_id);
+
+/**
+ * @brief Archives a log file by moving it from live_logs to archived_logs.
+ */
+void archive_log(const char *base_cache, const char *task_id);
+
+/**
+ * @brief Gets the exact start time of a process to prevent PID recycling race conditions.
+ */
+unsigned long long get_process_starttime(pid_t pid);
+
+/**
+ * @brief Cleans up any dead processes from running_tasks.txt by checking their PID.
+ */
+void clean_dead_tasks(const char *base_cache);
 
 /**
  * @brief Recursively deletes a file or directory.
