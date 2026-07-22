@@ -40,7 +40,7 @@ int start_client_send(Config *config, const char *local_path, int move) {
         remove_path(local_path);
     }
 
-    printf("Send complete.\n");
+    printf("\nSend complete.\n");
     close(sockfd);
     return 0;
 }
@@ -82,7 +82,7 @@ int start_client_get(Config *config, const char *remote_path, int move) {
         return -1;
     }
 
-    printf("Receive complete.\n");
+    printf("\nReceive complete.\n");
     close(sockfd);
     return 0;
 }

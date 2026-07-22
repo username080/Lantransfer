@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 
 /**
  * The Master Router for incoming connections.
@@ -94,6 +95,9 @@ int start_server(Config *config) {
             perror("accept");
             continue; // Ignore broken handshakes and keep listening
         }
+
+        int tcp_opt = 1;
+        setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &tcp_opt, sizeof(tcp_opt));
 
         printf("Accepted connection.\n");
         handle_client(client_fd, config, base_cache);

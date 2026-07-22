@@ -155,10 +155,8 @@ void print_progress(uint64_t current, uint64_t total, const char *prefix) {
     }
     printf("] %3d%%", (int)(ratio * 100.0));
     
-    // Once we hit 100%, break the terminal line so next text is clean.
-    if (current == total) {
-        printf("\n");
-    }
+    // Do NOT print a newline when hitting 100%, otherwise 10,000 files 
+    // will print 10,000 lines and bottleneck the terminal scroll speed.
     fflush(stdout);
 }
 
