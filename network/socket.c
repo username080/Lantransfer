@@ -6,6 +6,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <errno.h>
 
 /**
@@ -26,6 +27,9 @@ int create_server_socket(int port) {
         close(sockfd);
         return -1;
     }
+
+    int tcp_opt = 1;
+    setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &tcp_opt, sizeof(tcp_opt));
 
     // Configure the address struct to listen on ALL network interfaces (0.0.0.0)
     struct sockaddr_in addr;
@@ -59,6 +63,9 @@ int create_client_socket(const char *ip, int port) {
         perror("socket");
         return -1;
     }
+
+    int tcp_opt = 1;
+    setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &tcp_opt, sizeof(tcp_opt));
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
