@@ -130,8 +130,15 @@ void make_absolute_path(char *dest, size_t size, const char *path) {
  * and maps it onto a 50-character visual grid.
  */
 void print_progress(uint64_t current, uint64_t total, const char *prefix) {
+    char short_prefix[21];
+    if (strlen(prefix) > 20) {
+        snprintf(short_prefix, sizeof(short_prefix), "...%s", prefix + strlen(prefix) - 17);
+    } else {
+        snprintf(short_prefix, sizeof(short_prefix), "%s", prefix);
+    }
+
     if (total == 0) {
-        printf("\r%s [==================================================] 100%%\n", prefix);
+        printf("\r\033[2K%-20s [==================================================] 100%%\n", short_prefix);
         fflush(stdout);
         return;
     }
@@ -140,7 +147,7 @@ void print_progress(uint64_t current, uint64_t total, const char *prefix) {
     float ratio = (float)current / (float)total;
     int pos = (int)(width * ratio);
     
-    printf("\r%s [", prefix);
+    printf("\r\033[2K%-20s [", short_prefix);
     for (int i = 0; i < width; ++i) {
         if (i < pos) printf("=");
         else if (i == pos) printf(">"); // The leading edge arrow

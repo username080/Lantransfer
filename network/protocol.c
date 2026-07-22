@@ -88,6 +88,7 @@ static int send_single_file(int sockfd, const char *local_path, const char *rel_
         print_progress(0, 0, rel_path);
     } else {
         print_progress(0, file_size, rel_path);
+        int last_percent = 0;
         // Loop until EOF
         while ((n = fread(buf, 1, sizeof(buf), f)) > 0) {
             if (send_all(sockfd, buf, n) < 0) {
@@ -95,7 +96,11 @@ static int send_single_file(int sockfd, const char *local_path, const char *rel_
                 return -1;
             }
             sent_bytes += n;
-            print_progress(sent_bytes, file_size, rel_path);
+            int current_percent = (int)((float)sent_bytes / file_size * 100.0);
+            if (current_percent > last_percent || sent_bytes == file_size) {
+                print_progress(sent_bytes, file_size, rel_path);
+                last_percent = current_percent;
+            }
         }
     }
     
@@ -204,6 +209,7 @@ int protocol_recv_stream(int sockfd, const char *destination_dir) {
                 print_progress(0, 0, rel_path);
             } else {
                 print_progress(0, file_size, rel_path);
+                int last_percent = 0;
                 // Download loop
                 while (received < file_size) {
                     size_t to_read = sizeof(buf);
@@ -219,7 +225,11 @@ int protocol_recv_stream(int sockfd, const char *destination_dir) {
                     }
                     fwrite(buf, 1, n, f);
                     received += n;
-                    print_progress(received, file_size, rel_path);
+                    int current_percent = (int)((float)received / file_size * 100.0);
+                    if (current_percent > last_percent || received == file_size) {
+                        print_progress(received, file_size, rel_path);
+                        last_percent = current_percent;
+                    }
                 }
             }
             
