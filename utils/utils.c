@@ -1,4 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
+#define _DEFAULT_SOURCE
+#define _XOPEN_SOURCE 500
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -327,7 +329,7 @@ int remove_path(const char *path) {
 }
 
 // Extract "# requirements: req1 req2" from the start of the script
-static void extract_requirements(const char *script_content, char *reqs_out, size_t max_len) {
+void extract_requirements(const char *script_content, char *reqs_out, size_t max_len) {
     reqs_out[0] = '\0';
     const char *p = script_content;
     int line_count = 0;

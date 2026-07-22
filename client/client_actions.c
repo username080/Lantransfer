@@ -15,7 +15,7 @@ int start_client_send(Config *config, const char *local_path, int move) {
     }
     printf("Connected to server %s:%d\n", config->server_ip, config->port);
 
-    char *base_name = strrchr(local_path, '/');
+    const char *base_name = strrchr(local_path, '/');
     if (base_name) {
         base_name++;
     } else {

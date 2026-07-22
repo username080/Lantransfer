@@ -31,7 +31,7 @@ void handle_client_send(int client_fd, const char *target_path, const char *base
 
 void handle_client_get(int client_fd, const char *target_path) {
     printf("Client requested GET: %s\n", target_path);
-    char *base_name = strrchr(target_path, '/');
+    const char *base_name = strrchr(target_path, '/');
     if (base_name) base_name++; else base_name = (char *)target_path;
 
     if (protocol_send_path(client_fd, target_path, base_name) < 0) {
@@ -43,7 +43,7 @@ void handle_client_get(int client_fd, const char *target_path) {
 
 void handle_client_get_move(int client_fd, const char *target_path) {
     printf("Client requested GET MOVE: %s\n", target_path);
-    char *base_name = strrchr(target_path, '/');
+    const char *base_name = strrchr(target_path, '/');
     if (base_name) base_name++; else base_name = (char *)target_path;
 
     if (protocol_send_path(client_fd, target_path, base_name) == 0) {
@@ -260,7 +260,7 @@ void handle_client_exec(int client_fd, const char *target_path, int detach, cons
 }
 
 void handle_client_read_log(int client_fd, const char *task_id, const char *base_cache) {
-    char dir_path[8192];
+    char dir_path[4096];
     snprintf(dir_path, sizeof(dir_path), "%s/archived_logs", base_cache);
 
     // If task_id is empty, list all archived logs
