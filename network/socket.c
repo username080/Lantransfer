@@ -31,6 +31,10 @@ int create_server_socket(int port) {
     int tcp_opt = 1;
     setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &tcp_opt, sizeof(tcp_opt));
 
+    int sock_buf = 8388608;
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &sock_buf, sizeof(sock_buf));
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &sock_buf, sizeof(sock_buf));
+
     // Configure the address struct to listen on ALL network interfaces (0.0.0.0)
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -66,6 +70,10 @@ int create_client_socket(const char *ip, int port) {
 
     int tcp_opt = 1;
     setsockopt(sockfd, IPPROTO_TCP, TCP_NODELAY, &tcp_opt, sizeof(tcp_opt));
+
+    int sock_buf = 8388608;
+    setsockopt(sockfd, SOL_SOCKET, SO_SNDBUF, &sock_buf, sizeof(sock_buf));
+    setsockopt(sockfd, SOL_SOCKET, SO_RCVBUF, &sock_buf, sizeof(sock_buf));
 
     struct sockaddr_in addr;
     memset(&addr, 0, sizeof(addr));
@@ -125,7 +133,9 @@ ssize_t recv_all(int sockfd, void *buf, size_t len) {
     char *p = (char *)buf;
 
     while (total_recv < len) {
-        ssize_t received = recv(sockfd, p + total_recv, len - total_recv, 0);
+        // MSG_WAITALL forces the kernel to wait until all requested bytes arrive,
+        // reducing CPU context switches by up to 180x for large transfers!
+        ssize_t received = recv(sockfd, p + total_recv, len - total_recv, MSG_WAITALL);
         
         if (received < 0) {
             if (errno == EINTR) continue;

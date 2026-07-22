@@ -99,6 +99,10 @@ int start_server(Config *config) {
         int tcp_opt = 1;
         setsockopt(client_fd, IPPROTO_TCP, TCP_NODELAY, &tcp_opt, sizeof(tcp_opt));
 
+        int sock_buf = 8388608;
+        setsockopt(client_fd, SOL_SOCKET, SO_SNDBUF, &sock_buf, sizeof(sock_buf));
+        setsockopt(client_fd, SOL_SOCKET, SO_RCVBUF, &sock_buf, sizeof(sock_buf));
+
         printf("Accepted connection.\n");
         handle_client(client_fd, config, base_cache);
     }
