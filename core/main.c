@@ -56,15 +56,22 @@ static void daemonize(void) {
  * @brief Prints the helpful instruction manual if you type the command wrong.
  */
 void print_usage(const char *prog_name) {
-    printf("Usage:\n");
-    printf("  Server Mode: %s [-d|--daemon]\n", prog_name);
-    printf("  Client Send: %s send_file <local_path> [-m]\n", prog_name);
-    printf("  Client Get:  %s get_file <remote_path> [-m]\n", prog_name);
-    printf("  Client Exec: %s exec_command <command> [-r]\n", prog_name);
-    printf("  Client Exec: %s exec_script <script_path> [-r]\n", prog_name);
-    printf("  Client Attc: %s attach [task_id]\n", prog_name);
-    printf("  Client Read: %s read_log [task_id]\n", prog_name);
-    printf("Note: Configured via lantransfer.json in the current directory.\n");
+    printf("\n\033[1;36mLanTransfer - High Performance Local File & Execution Engine\033[0m\n");
+    printf("------------------------------------------------------------\n");
+    
+    printf("\033[1;33mSERVER COMMANDS:\033[0m\n");
+    printf("  \033[1;32m%s\033[0m [-d|--daemon]                  Start the server (use -d to run in background)\n\n", prog_name);
+    
+    printf("\033[1;33mFILE TRANSFER COMMANDS:\033[0m\n");
+    printf("  \033[1;32m%s send_file\033[0m <local_path> [-m]  Push a file/folder to the server (-m to move/delete original)\n", prog_name);
+    printf("  \033[1;32m%s get_file\033[0m  <remote_path> [-m] Pull a file/folder from the server (-m to move/delete remote)\n\n", prog_name);
+    
+    printf("\033[1;33mEXECUTION COMMANDS:\033[0m\n");
+    printf("  \033[1;32m%s exec_script\033[0m <script_path> [-r] Upload and run a script on the server (-r to detach to background)\n", prog_name);
+    printf("  \033[1;32m%s attach\033[0m      [task_id]          View live output of a detached background script\n", prog_name);
+    printf("  \033[1;32m%s read_log\033[0m    [task_id]          Read logs from completed or killed background scripts\n\n", prog_name);
+    
+    printf("\033[1;90mConfiguration loaded from 'lantransfer.json' in the current directory.\033[0m\n\n");
 }
 
 int main(int argc, char *argv[]) {
@@ -115,7 +122,7 @@ int main(int argc, char *argv[]) {
             int move = (argc >= 4 && strcmp(argv[3], "-m") == 0);
             return start_client_get(&config, argv[2], move) < 0 ? 1 : 0;
             
-        } else if (strcmp(cmd, "exec_command") == 0 || strcmp(cmd, "exec_script") == 0) {
+        } else if (strcmp(cmd, "exec_script") == 0) {
             if (argc < 3) { print_usage(argv[0]); return 1; }
             int detach = (argc >= 4 && strcmp(argv[3], "-r") == 0);
             return start_client_exec(&config, argv[2], detach) < 0 ? 1 : 0;

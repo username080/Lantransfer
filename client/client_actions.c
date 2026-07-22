@@ -103,12 +103,9 @@ int start_client_exec(Config *config, const char *command_or_script, int detach)
         payload_len = fread(payload, 1, sizeof(payload) - 1, f);
         fclose(f);
     } else {
-        printf("Sending command string...\n");
-        payload_len = strlen(command_or_script);
-        if (payload_len >= sizeof(payload)) {
-            payload_len = sizeof(payload) - 1;
-        }
-        memcpy(payload, command_or_script, payload_len);
+        fprintf(stderr, "Error: Could not open script file %s\n", command_or_script);
+        close(sockfd);
+        return -1;
     }
     payload[payload_len] = '\0';
 
