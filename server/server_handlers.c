@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <dirent.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 
@@ -147,6 +148,8 @@ void handle_client_attach(int client_fd, const char *task_id, const char *base_c
     fclose(f);
 }
 
+
+
 void handle_client_exec(int client_fd, const char *target_path, int detach, const char *base_cache) {
     printf("Client requested remote execution (Detach: %s).\n", detach ? "yes" : "no");
     setenv("LANTRANSFER_CACHE_DIR", base_cache, 1);
@@ -155,6 +158,7 @@ void handle_client_exec(int client_fd, const char *target_path, int detach, cons
     // instantly, instead of block-buffering them when running natively inside our C pipe!
     setenv("PYTHONUNBUFFERED", "1", 1);
 
+    // Connect to socket
     char tmp_script[] = "/tmp/lantransfer_exec_XXXXXX";
     int fd = mkstemp(tmp_script);
     if (fd < 0) { perror("mkstemp"); return; }
@@ -165,6 +169,17 @@ void handle_client_exec(int client_fd, const char *target_path, int detach, cons
     char ts[64];
     get_timestamp_str(ts, sizeof(ts));
     
+    char reqs[1024];
+    extract_requirements(target_path, reqs, sizeof(reqs));
+    
+    char cmd[2048];
+    if (strlen(reqs) > 0) {
+        snprintf(cmd, sizeof(cmd), "bash -c 'V=$(mktemp -d /tmp/venv_XXXXXX); trap \"rm -rf \\\"$V\\\"\" EXIT; python3 -m venv \"$V\" && \"$V/bin/pip\" install -q %s && \"$V/bin/python\" %s' 2>&1", reqs, tmp_script);
+    } else {
+        snprintf(cmd, sizeof(cmd), "%s 2>&1", tmp_script);
+    }
+    
+    // if detach create a deamon child and release the terminal
     if (detach) {
         pid_t pid = fork();
         if (pid < 0) {
@@ -185,8 +200,6 @@ void handle_client_exec(int client_fd, const char *target_path, int detach, cons
         // Child Process
         close(client_fd); // Sever tie with client
         
-        char cmd[512];
-        snprintf(cmd, sizeof(cmd), "%s 2>&1", tmp_script);
         FILE *p = popen(cmd, "r");
         if (p) {
             char out_path[8192];
@@ -209,8 +222,6 @@ void handle_client_exec(int client_fd, const char *target_path, int detach, cons
         
     } else {
         // Normal attached mode. ALWAYS save to archived_logs directly!
-        char cmd[512];
-        snprintf(cmd, sizeof(cmd), "%s 2>&1", tmp_script);
         FILE *p = popen(cmd, "r");
         if (p) {
             char out_path[8192];
@@ -247,8 +258,6 @@ void handle_client_exec(int client_fd, const char *target_path, int detach, cons
         unlink(tmp_script);
     }
 }
-
-#include <dirent.h>
 
 void handle_client_read_log(int client_fd, const char *task_id, const char *base_cache) {
     char dir_path[8192];

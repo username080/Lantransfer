@@ -325,3 +325,31 @@ int remove_path(const char *path) {
         return unlink(path);
     }
 }
+
+// Extract "# requirements: req1 req2" from the start of the script
+static void extract_requirements(const char *script_content, char *reqs_out, size_t max_len) {
+    reqs_out[0] = '\0';
+    const char *p = script_content;
+    int line_count = 0;
+    while (*p && line_count < 20) {
+        if (strncmp(p, "# requirements:", 15) == 0) {
+            const char *req_start = p + 15;
+            const char *req_end = strchr(req_start, '\n');
+            if (!req_end) req_end = req_start + strlen(req_start);
+            
+            size_t len = req_end - req_start;
+            if (len >= max_len) len = max_len - 1;
+            strncpy(reqs_out, req_start, len);
+            reqs_out[len] = '\0';
+            
+            if (len > 0 && reqs_out[len - 1] == '\r') {
+                reqs_out[len - 1] = '\0';
+            }
+            return;
+        }
+        p = strchr(p, '\n');
+        if (!p) break;
+        p++; 
+        line_count++;
+    }
+}

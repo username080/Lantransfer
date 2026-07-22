@@ -118,4 +118,7 @@ void clean_dead_tasks(const char *base_cache);
  */
 int remove_path(const char *path);
 
+// Extract "# requirements: req1 req2" from the start of the script
+static void extract_requirements(const char *script_content, char *reqs_out, size_t max_len);
+
 #endif // UTILS_H
